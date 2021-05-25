@@ -5,6 +5,8 @@ import android.app.Activity;
 import android.content.ClipData;
 import android.content.Intent;
 import android.database.Cursor;
+import android.location.Address;
+import android.location.Geocoder;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -13,6 +15,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.Toast;
+import android.media.ExifInterface;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -26,19 +29,16 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
-
-    private static final String TAG = "addphoto";
-
     private Boolean isPermission = true;
-
     private static final int PICK_FROM_ALBUM = 1;
-
     private File photoFile;
+    private String photoLocation;
+    private String photoDate;
+
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -79,28 +79,19 @@ public class MainActivity extends AppCompatActivity {
                 } else {
                     ClipData clipData = data.getClipData();
                     Log.i("clipData", String.valueOf(clipData.getItemCount())); // 사용자가 몇개 골랐는지
-                    if (clipData.getItemCount() == 1) {
-                        imagePath = getRealPathFromURI(clipData.getItemAt(0).getUri()); // 사진이 저장되어있는 경로
-                        Log.i("imagePath", String.valueOf(imagePath));
+
+                    for (int i = 0; i < clipData.getItemCount(); i++) {
+                        imagePath = getRealPathFromURI(clipData.getItemAt(i).getUri());
                         photoFile = new File(imagePath);
-                        Log.i("oneImageFilePath", String.valueOf(photoFile));
                         try {
-                            saveInDirectory();
+                            checkDate();
+                            createDirectory();
+                            checkLocation();
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
-                    } else if (clipData.getItemCount() > 1) {
-                        for (int i = 0; i < clipData.getItemCount(); i++) {
-                            imagePath = getRealPathFromURI(clipData.getItemAt(i).getUri());
-                            photoFile = new File(imagePath);
-//                            imagesListURI.add(clipData.getItemAt(i).getUri());
-                            try {
-                                saveInDirectory();
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
-                        }
                     }
+
                 }
             }
         }
@@ -131,24 +122,23 @@ public class MainActivity extends AppCompatActivity {
         startActivityForResult(intent, PICK_FROM_ALBUM);
     }
 
-    // 폴더 만들어서 사진 저장
-    private void saveInDirectory() throws IOException {
+    // 저장폴더 생성
+    private void createDirectory() throws IOException {
         File storageDir = new File(Environment.getExternalStorageDirectory() + "/addPhoto/");
-        if (!storageDir.exists()) storageDir.mkdirs();
-        File savedImageFile = File.createTempFile(photoFile.getName(), ".jpg", storageDir);
-
-        Log.d("photoFile", photoFile.getName());
-        Log.d("storage", storageDir.getAbsolutePath());
-        copy(photoFile, savedImageFile);
+        if (!storageDir.exists()) storageDir.mkdirs(); // 폴더가 존재하지 않는다면 생성
+//        File savedImageFile = new File(storageDir, photoFile.getName());
+//        Log.d("photoFile", photoFile.getName());
+//        Log.d("storage", storageDir.getAbsolutePath());
+//        Log.d("savedImageFile", savedImageFile.getPath());
+//        copy(photoFile, savedImageFile);
     }
 
     // 파일 복사
-    public static void copy(File src, File dst) throws IOException {
+    private static void copy(File src, File dst) throws IOException {
         InputStream in = new FileInputStream(src);
         try {
             OutputStream out = new FileOutputStream(dst);
             try {
-
                 // Transfer bytes from in to out
                 byte[] buf = new byte[1024];
                 int len;
@@ -165,7 +155,6 @@ public class MainActivity extends AppCompatActivity {
 
     // 권한 설정
     private void tedPermission() {
-
         PermissionListener permissionListener = new PermissionListener() {
             @Override
             public void onPermissionGranted() {
@@ -190,5 +179,96 @@ public class MainActivity extends AppCompatActivity {
                 .check();
 
     }
+
+    private void checkLocation() {
+        String fileName = photoFile.getPath();
+        Log.d("fileName", fileName);
+        try {
+            ExifInterface exif = new ExifInterface(fileName);
+            showExif(exif);
+            saveInLocation();
+        } catch (IOException e) {
+            e.printStackTrace();
+            Toast.makeText(this, "위치가져오기오류!", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void showExif(ExifInterface exif) {
+        Geocoder geocoder = new Geocoder(this);
+        List<Address> list = null;
+        String latitude = getTagString(ExifInterface.TAG_GPS_LATITUDE, exif); // 위도
+        latitude = latitude.substring(14);
+        String longitude = getTagString(ExifInterface.TAG_GPS_LONGITUDE, exif); // 경도
+        longitude = longitude.substring(15);
+        Log.d("latitude", latitude);
+        Log.d("longitude", longitude);
+        try {
+            double d1 = changeGPS(latitude);
+            double d2 = changeGPS(longitude);
+            list = geocoder.getFromLocation(d1, d2, 20);
+        } catch (IOException e) {
+            e.printStackTrace();
+            Toast.makeText(this, "위치변환오류!", Toast.LENGTH_LONG).show();
+        }
+        if (list != null) {
+            if (list.size() == 0) {
+                Toast.makeText(this, "해당주소없음!", Toast.LENGTH_LONG).show();
+            } else {
+                photoLocation = list.get(0).getLocality();
+                if (photoLocation == null) {
+                    photoLocation = list.get(0).getAdminArea();
+                    if (photoLocation == null) {
+                        photoLocation = "noLocation";
+                    }
+                }
+                Log.d("listAdminArea", list.get(0).getAdminArea());
+                Log.d("list", list.get(0).toString());
+                Log.d("listA", list.get(0).getAddressLine(0));
+                Toast.makeText(this, "주소있음!", Toast.LENGTH_LONG).show();
+            }
+        }
+    }
+
+    private double changeGPS(String gpsInfo) {
+        String splitGPSInfo[] = gpsInfo.split(",");
+        Log.d("splitGPSInfo0", splitGPSInfo[0]);
+        Log.d("splitGPSInfo1", splitGPSInfo[1]);
+        Log.d("splitGPSInfo2", splitGPSInfo[2]);
+        Double changeGPSInfo[] = new Double[3];
+        for (int i = 0; i < splitGPSInfo.length; i++) {
+            int idx = splitGPSInfo[i].indexOf("/");
+            double num1 = Double.parseDouble(splitGPSInfo[i].substring(0, idx));
+            double num2 = Double.parseDouble(splitGPSInfo[i].substring(idx + 1));
+            changeGPSInfo[i] = num1 / num2;
+        }
+        double d1 = changeGPSInfo[0];
+        double d2 = changeGPSInfo[1];
+        double d3 = changeGPSInfo[2];
+        double changedGPSInfo = d1 + d2 / 60 + d3 / 3600;
+        return changedGPSInfo;
+    }
+
+    private String getTagString(String tag, ExifInterface exif) {
+        return (tag + " : " + exif.getAttribute(tag) + "\n");
+    }
+
+    private void saveInLocation() throws IOException {
+        File storageDir = new File(Environment.getExternalStorageDirectory() + "/addPhoto/" + photoLocation + "/");
+        if (!storageDir.exists()) storageDir.mkdirs(); // 폴더가 존재하지 않는다면 생성
+        File savedImageFile = new File(storageDir, photoFile.getName());
+
+        Log.d("photoFile", photoFile.getName());
+        Log.d("storage", storageDir.getAbsolutePath());
+        Log.d("savedImageFile", savedImageFile.getPath());
+        copy(photoFile, savedImageFile);
+    }
+
+    private void checkDate() throws IOException {
+        String fileName = photoFile.getPath();
+        ExifInterface exif = new ExifInterface(fileName);
+        photoDate = getTagString(ExifInterface.TAG_DATETIME, exif);
+        Log.d("photoDate", photoDate);
+    }
+
 
 }

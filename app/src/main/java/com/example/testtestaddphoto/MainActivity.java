@@ -19,6 +19,7 @@ import android.media.ExifInterface;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.fragment.app.FragmentTransaction;
 
 import com.gun0912.tedpermission.PermissionListener;
 import com.gun0912.tedpermission.TedPermission;
@@ -38,13 +39,13 @@ public class MainActivity extends AppCompatActivity {
     private File photoFile;
     private String photoLocation;
     private String photoDate;
+    showLocationFolderFragment fragment_showFolder;
 
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
         tedPermission();
 
         findViewById(R.id.btnGallery).setOnClickListener(new View.OnClickListener() {
@@ -57,6 +58,11 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+//        FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
+//        transaction.replace(R.id.showLocationFragment, fragment_showFolder);
+//        transaction.commit();
+//        fragment_showFolder = new showLocationFolderFragment();
+
     }
 
 
@@ -64,8 +70,6 @@ public class MainActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         String imagePath = null;
-        ImageView oneImage = null;
-        ArrayList<Uri> imagesListURI = new ArrayList<>();
         if (resultCode != Activity.RESULT_OK) {
             Toast.makeText(this, "취소 되었습니다.", Toast.LENGTH_SHORT).show();
             return;
@@ -193,7 +197,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void showExif(ExifInterface exif) {
+    private void showExif(ExifInterface exif) throws IOException {
         Geocoder geocoder = new Geocoder(this);
         List<Address> list = null;
         String latitude = getTagString(ExifInterface.TAG_GPS_LATITUDE, exif); // 위도
@@ -202,12 +206,13 @@ public class MainActivity extends AppCompatActivity {
         longitude = longitude.substring(15);
         Log.d("latitude", latitude);
         Log.d("longitude", longitude);
+        double d1 = changeGPS(latitude);
+        double d2 = changeGPS(longitude);
         try {
-            double d1 = changeGPS(latitude);
-            double d2 = changeGPS(longitude);
-            list = geocoder.getFromLocation(d1, d2, 20);
+            list = geocoder.getFromLocation(d1, d2, 10);
         } catch (IOException e) {
             e.printStackTrace();
+            list = geocoder.getFromLocation(d1, d2, 10);
             Toast.makeText(this, "위치변환오류!", Toast.LENGTH_LONG).show();
         }
         if (list != null) {
@@ -265,6 +270,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void checkDate() throws IOException {
         String fileName = photoFile.getPath();
+        Log.d("fileName", fileName);
         ExifInterface exif = new ExifInterface(fileName);
         photoDate = getTagString(ExifInterface.TAG_DATETIME, exif);
         Log.d("photoDate", photoDate);

@@ -2,6 +2,7 @@ package com.example.testtestaddphoto;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.FragmentManager;
 import android.content.ClipData;
 import android.content.Intent;
 import android.database.Cursor;
@@ -13,6 +14,7 @@ import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
+import android.widget.GridView;
 import android.widget.ImageView;
 import android.widget.Toast;
 import android.media.ExifInterface;
@@ -39,7 +41,7 @@ public class MainActivity extends AppCompatActivity {
     private File photoFile;
     private String photoLocation;
     private String photoDate;
-    showLocationFolderFragment fragment_showFolder;
+    showLocationFolderFragment fragment_showFolder = new showLocationFolderFragment();
 
 
     @Override
@@ -58,10 +60,28 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-//        FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
-//        transaction.replace(R.id.showLocationFragment, fragment_showFolder);
+
+//        transaction.replace(R.id.showLocationFragment, test);
+        FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
+        transaction.replace(R.id.showLocationFragment, fragment_showFolder); // fragment삽입할 위치, fragment
 //        transaction.commit();
-//        fragment_showFolder = new showLocationFolderFragment();
+
+//        View v = inflater.inflate(R.layout.fragment_show_location_folder, container, false);
+//        GridView gridView = findViewById(R.id.list);
+//        FolderAdapter adapter = new FolderAdapter();
+//
+//        File storageDir = new File(Environment.getExternalStorageDirectory() + "/addPhoto/");
+//        if (!storageDir.exists()) storageDir.mkdirs();
+//        File[] locationFoldersNames = storageDir.listFiles();
+//        Log.d("folderName", locationFoldersNames[0].getName());
+//        if(locationFoldersNames.length>0) {
+//            for (int i = 0; i < locationFoldersNames.length; i++) {
+//                adapter.addItem(new Folder(locationFoldersNames[i].getName()));
+//            }
+//            gridView.setAdapter(adapter);
+//        }else{
+//            Toast.makeText(this, "폴더없음!", Toast.LENGTH_LONG).show();
+//        }
 
     }
 
@@ -95,7 +115,8 @@ public class MainActivity extends AppCompatActivity {
                             e.printStackTrace();
                         }
                     }
-
+                    FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
+                    transaction.detach(fragment_showFolder).attach(fragment_showFolder).commit();
                 }
             }
         }
@@ -201,44 +222,49 @@ public class MainActivity extends AppCompatActivity {
         Geocoder geocoder = new Geocoder(this);
         List<Address> list = null;
         String latitude = getTagString(ExifInterface.TAG_GPS_LATITUDE, exif); // 위도
-        latitude = latitude.substring(14);
+        latitude = latitude.substring(14); // GPSLatitude : null -> null
         String longitude = getTagString(ExifInterface.TAG_GPS_LONGITUDE, exif); // 경도
-        longitude = longitude.substring(15);
+        longitude = longitude.substring(15); // GPSLongitude : null -> null
         Log.d("latitude", latitude);
         Log.d("longitude", longitude);
-        double d1 = changeGPS(latitude);
-        double d2 = changeGPS(longitude);
-        try {
-            list = geocoder.getFromLocation(d1, d2, 10);
-        } catch (IOException e) {
-            e.printStackTrace();
-            list = geocoder.getFromLocation(d1, d2, 10);
-            Toast.makeText(this, "위치변환오류!", Toast.LENGTH_LONG).show();
-        }
-        if (list != null) {
-            if (list.size() == 0) {
-                Toast.makeText(this, "해당주소없음!", Toast.LENGTH_LONG).show();
-            } else {
-                photoLocation = list.get(0).getLocality();
-                if (photoLocation == null) {
-                    photoLocation = list.get(0).getAdminArea();
+        if (latitude.contains("null") || longitude.contains("null")) {
+            photoLocation = "noLocation";
+        } else {
+            double d1 = changeGPS(latitude);
+            double d2 = changeGPS(longitude);
+            try {
+                list = geocoder.getFromLocation(d1, d2, 10);
+            } catch (IOException e) {
+                e.printStackTrace();
+                list = geocoder.getFromLocation(d1, d2, 10);
+                Toast.makeText(this, "위치변환오류!", Toast.LENGTH_LONG).show();
+            }
+
+            if (list != null) {
+                if (list.size() == 0) {
+                    Toast.makeText(this, "해당주소없음!", Toast.LENGTH_LONG).show();
+                } else {
+                    photoLocation = list.get(0).getLocality();
                     if (photoLocation == null) {
-                        photoLocation = "noLocation";
+                        photoLocation = list.get(0).getAdminArea();
+                        if (photoLocation == null) {
+                            photoLocation = "noLocation";
+                        }
                     }
+                    Log.d("listAdminArea", list.get(0).getAdminArea());
+                    Log.d("list", list.get(0).toString());
+                    Log.d("listA", list.get(0).getAddressLine(0));
+                    Toast.makeText(this, "주소있음!", Toast.LENGTH_LONG).show();
                 }
-                Log.d("listAdminArea", list.get(0).getAdminArea());
-                Log.d("list", list.get(0).toString());
-                Log.d("listA", list.get(0).getAddressLine(0));
-                Toast.makeText(this, "주소있음!", Toast.LENGTH_LONG).show();
             }
         }
     }
 
     private double changeGPS(String gpsInfo) {
         String splitGPSInfo[] = gpsInfo.split(",");
-        Log.d("splitGPSInfo0", splitGPSInfo[0]);
-        Log.d("splitGPSInfo1", splitGPSInfo[1]);
-        Log.d("splitGPSInfo2", splitGPSInfo[2]);
+//        Log.d("splitGPSInfo0", splitGPSInfo[0]);
+//        Log.d("splitGPSInfo1", splitGPSInfo[1]);
+//        Log.d("splitGPSInfo2", splitGPSInfo[2]);
         Double changeGPSInfo[] = new Double[3];
         for (int i = 0; i < splitGPSInfo.length; i++) {
             int idx = splitGPSInfo[i].indexOf("/");

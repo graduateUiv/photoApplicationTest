@@ -6,6 +6,7 @@ import android.os.Bundle;
 import androidx.fragment.app.Fragment;
 
 import android.os.Environment;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -67,21 +68,22 @@ public class showLocationFolderFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
-//        View v = inflater.inflate(R.layout.folder_part, container, false);
-//        GridView gridView = v.findViewById(R.id.gridView);
-//        FolderAdapter adapter = new FolderAdapter();
-//
-//        File storageDir = new File(Environment.getExternalStorageDirectory() + "/addPhoto/");
-//        if (!storageDir.exists()) storageDir.mkdirs();
-//        File[] locationFoldersNames = storageDir.listFiles();
-//        if(locationFoldersNames.length>0) {
-//            for (int i = 0; i < locationFoldersNames.length; i++) {
-//                adapter.addItem(new Folder(locationFoldersNames[i].getName()));
-//            }
-//            gridView.setAdapter(adapter);
-//        }else{
-//            Toast.makeText(getActivity(), "폴더없음!", Toast.LENGTH_LONG).show();
-//        }
-        return inflater.inflate(R.layout.fragment_show_location_folder, container, false);
+        View v = inflater.inflate(R.layout.fragment_show_location_folder, container, false);
+        GridView gridView = v.findViewById(R.id.list);
+        FolderAdapter adapter = new FolderAdapter();
+
+        File storageDir = new File(Environment.getExternalStorageDirectory() + "/addPhoto/");
+        if (!storageDir.exists()) storageDir.mkdirs();
+        File[] locationFoldersNames = storageDir.listFiles();
+//        Log.d("folderName", locationFoldersNames[0].getName());
+        if(locationFoldersNames.length>0) {
+            for (int i = 0; i < locationFoldersNames.length; i++) {
+                adapter.addItem(new Folder(locationFoldersNames[i].getName()));
+            }
+            gridView.setAdapter(adapter);
+        }else{
+            Toast.makeText(getActivity(), "폴더없음!", Toast.LENGTH_LONG).show();
+        }
+        return v;
     }
 }

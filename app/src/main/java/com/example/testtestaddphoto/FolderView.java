@@ -4,11 +4,12 @@ import android.content.Context;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
 import android.widget.GridView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 
-public class FolderView extends GridView {
+public class FolderView extends LinearLayout {
     TextView folderName;
 
     public FolderView(Context context) {
